@@ -165,9 +165,53 @@ class YAVFS(Fuse):
 				wallstr += post['text']+u'\n'
 			wallstr += (u'_'*40)+u'\n'
 		self.filedict[realpath] = NodeYAVFS(YAVFS_FILE, path,
-			fileobj = StringIO(wallstr.encode('utf8'))
+			fileobj = StringIO(wallstr.encode('utf8')),
+			path = path,
+			realpath = realpath
 		)
 		self.filedict[basepath].dirlist += [path]
+
+	def populate_albums_dir(self, basepath, path, uid=None, albumsobj=None):
+		if not albumsobj:
+			albumsobj = self.vk.photos.getAlbums(owner_id=uid, need_system=1)
+		realpath = basepath+'/'+path
+		dirlist = []
+		for alb in albumsobj['items']:
+			self.filedict[realpath+'/'+alb['title']] = NodeYAVFS(YAVFS_DYNDIR, path+'/'+alb['title'],
+				dyndir = self.get_album,
+				album = alb,
+				path = alb['title'],
+				realpath = realpath+'/'+alb['title']
+			)
+			dirlist += [alb['title']]
+		self.filedict[realpath] = NodeYAVFS(YAVFS_DIR, path,
+			dirlist = dirlist,
+			path = path,
+			realpath = realpath
+		)
+		self.filedict[basepath].dirlist += [path]
+
+	def get_album(self, node):
+		def findmax(photo):
+			if 'photo_2560' in photo: return photo['photo_2560']
+			if 'photo_1280' in photo: return photo['photo_1280']
+			if 'photo_807' in photo: return photo['photo_807']
+			if 'photo_604' in photo: return photo['photo_604']
+			if 'photo_130' in photo: return photo['photo_130']
+			if 'photo_75' in photo: return photo['photo_75']
+		photos = self.vk.photos.get(owner_id=node.album['owner_id'], album_id=node.album['id'])['items']
+		dirlist = []
+		for photo in photos:
+			name = str(photo['id'])+'.jpg'
+			dirlist += [name]
+			self.filedict[node.realpath+'/'+name] = NodeYAVFS(YAVFS_DYNFILE, name,
+				dynfile = self.dyn.open_remote_file,
+				remote_url = findmax(photo),
+				path = node.path,
+				realpath = node.realpath
+			)
+		node.dirlist = dirlist
+		return dirlist
 
 	def user_put_prof_to_fs(self, basepath, path, uid=None, userobj=None):
 		if not userobj:
@@ -181,7 +225,7 @@ class YAVFS(Fuse):
 			dirlist = [
 				'friends',
 				'profile.txt',
-				'photo.jpg'
+				'photo.jpg',
 			],
 			uid = uid,
 			path = path,
@@ -206,8 +250,8 @@ class YAVFS(Fuse):
 		self.filedict[realpath+'/photo.jpg'] = NodeYAVFS(YAVFS_DYNFILE, path+'/photo.jpg',
 			dynfile = self.dyn.open_remote_file,
 			uid = uid,
-			path = path+'/profile.txt',
-			realpath = realpath+'/profile.txt',
+			path = path+'/photo.jpg',
+			realpath = realpath+'/photo.jpg',
 			remote_url = userobj['photo_max']
 		)
 		
@@ -219,6 +263,8 @@ class YAVFS(Fuse):
 		)
 
 		try: self.populate_wall_dir(realpath, 'wall.txt', uid=uid)
+		except: pass
+		try:self.populate_albums_dir(realpath, 'albums', uid=uid)
 		except: pass
 		self.filedict[basepath].dirlist += [path]
 
