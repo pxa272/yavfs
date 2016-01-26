@@ -1,5 +1,5 @@
 YAVFS - Yet Another Vk FS
-Реализация VK API клиента в виде файловой системы FUSE для GNU/Linux.
+Реализация VK API клиента в виде файловой системы FUSE для Linux и др. поддерживаемых ОС.
 Написана на Python и имеет такие зависимости:
 * vk-api (pip install vk-api)
 * fuse (pip install fuse) - или из реп

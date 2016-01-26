@@ -9,7 +9,6 @@ import urllib2
 
 import fuse
 from fuse import Fuse
-import StringIO as sio
 from StringIO import StringIO
 
 import vk_api
@@ -23,8 +22,6 @@ YAVFS_FILE = 0
 YAVFS_DIR = 1
 YAVFS_DYNDIR = 2
 YAVFS_DYNFILE = 3
-
-YAVFS_VKNULL=1
 
 YAVFS_SIZE_FOLEN = -1
 
@@ -48,12 +45,17 @@ class ConfigYAVFS:
 			authfile = open(AUTH_FILE, 'w')
 			authfile.write('%s\n%s\n'%(self.login, self.passwd))
 
+class PathYAVFS:
+	def __init__(self):
+		pass
+	def find_path(self, path, dict):
+		try: return dict[path]
+		except: return YAVFS_NOTFOUND
+
 #Класс определения файла/папки
 class NodeYAVFS:
 	def __init__(self, ftype, fname='', size = YAVFS_SIZE_FOLEN, **kwargs):
 		self.ftype = ftype
-		self.vktype = YAVFS_VKNULL
-		self.vkid = 0
 		self.dirlist = []
 		self.dyndir = lambda: None
 		self.dynfile = lambda: None
@@ -63,17 +65,6 @@ class NodeYAVFS:
 			setattr(self, param, value)
 		if self.size == YAVFS_SIZE_FOLEN:
 			self.size = self.fileobj.len
-
-#Класс, с помощью которого выпоняется поиск записи в хеше по пути
-class PathYAVFS:
-	def __init__(self):
-		pass
-	def find_path(self, path, dct):
-		splitted = os.path.split(path)
-		entry = YAVFS_NULL
-		try: entry = dct[path]
-		except: return YAVFS_NOTFOUND
-		return entry
 
 #Вспомогательный класс - структура stat.
 class StatYAVFS(fuse.Stat):
@@ -121,7 +112,6 @@ class YAVFS(Fuse):
 	def __init__(self, *args, **kwargs):
 		Fuse.__init__(self, *args, **kwargs)
 		self.pathfinder = PathYAVFS()
-		
 		self.config = ConfigYAVFS()		
 
 #		try:
